@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.0.1",
   "workspaces": [
+    "packages/contracts",
+    "packages/dapp",
     "packages/*"
   ],
   "license": "MIT",
