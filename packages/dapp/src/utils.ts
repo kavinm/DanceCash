@@ -308,3 +308,57 @@ export const convertIpfsLink = (uri: string | undefined, preferredGateway?: stri
 export const getGateway = () => {
   return globalThis.localStorage?.getItem("ipfs_gateway") || "w3s.link";
 }
+
+// CashToken/NFT functions for event tickets
+export interface EventTicketData {
+  eventId: string;
+  eventName: string;
+  eventDate: string;
+  venue: string;
+  dancerName: string;
+  dancerEmail: string;
+}
+
+export interface TokenMetadata {
+  name: string;
+  description: string;
+  image: string;
+  properties: Record<string, any>;
+}
+
+/**
+ * Creates metadata for an event ticket CashToken
+ */
+export const createEventTicketMetadata = (ticketData: EventTicketData): TokenMetadata => {
+  return {
+    name: `${ticketData.eventName} - Ticket`,
+    description: `Event ticket for ${ticketData.eventName} on ${ticketData.eventDate} at ${ticketData.venue}`,
+    image: `https://api.dicebear.com/6.x/event-ticket/svg?seed=${ticketData.eventId}`,
+    properties: {
+      eventId: ticketData.eventId,
+      eventName: ticketData.eventName,
+      eventDate: ticketData.eventDate,
+      venue: ticketData.venue,
+      dancerName: ticketData.dancerName,
+      dancerEmail: ticketData.dancerEmail,
+      ticketType: "event-ticket",
+    }
+  };
+};
+
+/**
+ * Creates a unique commitment string for an event ticket
+ */
+export const createTicketCommitment = (ticketData: EventTicketData): string => {
+  return `${ticketData.eventId}:${ticketData.dancerEmail}:${Date.now()}`;
+};
+
+/**
+ * Gets a token URI based on event ticket data
+ */
+export const getTicketTokenUri = (ticketData: EventTicketData): string => {
+  const metadata = createEventTicketMetadata(ticketData);
+  const metadataString = JSON.stringify(metadata);
+  const blob = new Blob([metadataString], { type: 'application/json' });
+  return URL.createObjectURL(blob);
+};

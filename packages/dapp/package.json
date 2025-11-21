@@ -16,8 +16,10 @@
     "blockies": "^0.0.2",
     "cashscript": "^0.12.0",
     "next": "16.0.1",
+    "qrcode.react": "^4.2.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "react-icons": "^5.5.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
