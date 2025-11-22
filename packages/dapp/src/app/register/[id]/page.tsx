@@ -131,10 +131,58 @@ export default function RegistrationPage() {
     }
   };
 
-  const handleFiatPayment = () => {
-    // In a real app, this would integrate with Google Pay/Apple Pay
-    console.log('Processing fiat payment via Google/Apple Pay');
-    setStep(3);
+  const handleFiatPayment = async () => {
+    try {
+      // Create a checkout session via the backend API
+      const checkoutResponse = await fetch('/api/payments/sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: address || formData.email, // Use wallet address or email as user ID
+          eventId: id,
+          ticketTypeId: 'general', // Default ticket type
+          totalAmount: paymentMethod === 'bch' ? event.price * 0.9 : event.price,
+          returnUrl: window.location.href,
+          cancelUrl: window.location.href,
+        }),
+      });
+
+      if (!checkoutResponse.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const checkoutData = await checkoutResponse.json();
+
+      // For fiat payments, we'll process via Google Pay
+      const googlePayResponse = await fetch('/api/payments/google', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          checkoutSessionId: checkoutData.sessionId,
+          userId: address || formData.email,
+          dancerName: formData.name,
+        }),
+      });
+
+      if (!googlePayResponse.ok) {
+        throw new Error('Failed to process Google Pay');
+      }
+
+      const googlePayData = await googlePayResponse.json();
+
+      // In a real app, you would redirect to the Google Pay URL or handle the payment
+      console.log('Google Pay URL:', googlePayData.googlePayUrl);
+
+      // For demo purposes, just move to the next step
+      setStep(3);
+    } catch (error) {
+      console.error('Fiat payment error:', error);
+      alert('Payment failed. Please try again.');
+    }
   };
 
   const handlePayment = (e: React.FormEvent) => {
@@ -153,52 +201,33 @@ export default function RegistrationPage() {
     }
 
     try {
-      // Create a wallet instance from the connected address
-      const wallet = await BaseWallet.watchOnly(address);
-
-      // Prepare event ticket data
-      const ticketInfo: EventTicketData = {
-        eventId: event.id,
-        eventName: event.title,
-        eventDate: event.date,
-        venue: event.venue,
-        dancerName: formData.name,
-        dancerEmail: formData.email
-      };
-
-      // Create the event ticket token (NFT)
-      const ticketResult = await createEventTicketToken(wallet, ticketInfo);
-
-      // Send the ticket token to the dancer's wallet address
-      const ticketSendResult = await sendEventTicketToken(
-        wallet,
-        ticketResult.tokenId,
-        ticketResult.commitment,
-        address
-      );
-
-      // Calculate cashback amount in satoshis (10% of ticket price in USD, converted to BCH then to satoshis)
-      // For demo purposes, we'll use a fixed conversion: $1 = 1000 satoshis
-      const ticketPriceInUSD = paymentMethod === 'bch' ? event.price * 0.9 : event.price;
-      const cashbackAmount = Math.floor(ticketPriceInUSD * 0.1 * 1000); // Using $1 = 1000 sat conversion for demo
-
-      // Create the cashback token
-      const cashbackResult = await createCashBackToken(
-        wallet,
-        cashbackAmount,
-        address,
-        event.id
-      );
-
-      setTicketData({
-        ticket: {
-          ...ticketResult,
-          txId: ticketSendResult
+      // Create a ticket via the backend API
+      const ticketResponse = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        cashback: cashbackResult
+        body: JSON.stringify({
+          eventId: id,
+          ticketTypeId: 'general', // Default ticket type
+          userId: address,
+          status: 'active',
+          pricePaid: paymentMethod === 'bch' ? event.price * 0.9 : event.price,
+          pricePaidBCH: paymentMethod === 'bch' ? event.price * 0.9 : undefined,
+          transactionId: 'mock-transaction-id', // Would be actual transaction ID in real implementation
+          paymentMethod: paymentMethod,
+          ticketTokenId: 'mock-token-id', // Would be actual token ID in real implementation
+        }),
       });
 
-      console.log('Ticket and cashback generated successfully:', { ticket: ticketResult, cashback: cashbackResult });
+      if (!ticketResponse.ok) {
+        throw new Error('Failed to create ticket');
+      }
+
+      const ticketData = await ticketResponse.json();
+      setTicketData(ticketData);
+
+      console.log('Ticket created successfully via backend:', ticketData);
       return true;
     } catch (error) {
       console.error('Error generating ticket:', error);
