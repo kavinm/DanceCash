@@ -86,12 +86,12 @@ export default function Home() {
           {info.length > 0 && <div onClick={() => setInfo("")} className="break-all md:break-normal mx-3 mb-4 rounded-lg border-green-300 border-solid border-2 bg-green-100 px-6 py-5 text-base text-green-700" role="alert">{info}</div>}
         </div>
       }
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-[var(--background)]">
         <Header />
         <main className="container mx-auto px-4 py-8">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Upcoming Dance Events</h1>
-            <p className="text-gray-600">Find and book your next dance adventure</p>
+            <h1 className="text-3xl font-bold text-black mb-2">Upcoming Dance Events</h1>
+            <p className="text-black">Find and book your next dance adventure</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -104,43 +104,43 @@ export default function Home() {
               }) : 'TBD';
 
               return (
-                <div key={event._id || event.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                <div key={event._id || event.id} className="bg-[var(--surface)] rounded-lg shadow-md border border-[#0AC18E]/15 overflow-hidden hover:shadow-lg transition-shadow duration-300">
                   <div className="relative">
                     <img
-                      src={event.image || "https://images.unsplash.com/photo-1542662565-7e4e66d9d8f0?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"}
+                      src={event.image || event.bannerImage || "/Dance.cash.png"}
                       alt={event.title}
                       className="w-full h-48 object-cover"
                     />
-                    <div className="absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                    <div className="absolute top-4 right-4 bg-[#0AC18E] text-white px-3 py-1 rounded-full text-sm font-semibold">
                       {event.danceStyle || 'Dance'}
                     </div>
                   </div>
 
                   <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{event.title}</h3>
-                    <p className="text-gray-600 mb-4 line-clamp-2">{event.description}</p>
+                    <h3 className="text-xl font-bold text-black mb-2">{event.title}</h3>
+                    <p className="text-black mb-4 line-clamp-2">{event.description}</p>
 
                     <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <FaCalendar className="mr-2 text-blue-500" />
+                      <div className="flex items-center text-sm text-black">
+                        <FaCalendar className="mr-2 text-[#0AC18E]" />
                         <span>{eventDate}</span>
                       </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <FaClock className="mr-2 text-blue-500" />
+                      <div className="flex items-center text-sm text-black">
+                        <FaClock className="mr-2 text-[#0AC18E]" />
                         <span>{event.startTime || 'TBD'}</span>
                       </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <FaMapMarkerAlt className="mr-2 text-blue-500" />
+                      <div className="flex items-center text-sm text-black">
+                        <FaMapMarkerAlt className="mr-2 text-[#0AC18E]" />
                         <span>{event.venue || 'TBD'}, {event.location?.city ? `${event.location.city}, ${event.location.state}` : 'TBD'}</span>
                       </div>
                     </div>
 
                     <div className="flex justify-between items-center">
                       <div className="flex items-center">
-                        <FaDollarSign className="text-green-600 mr-1" />
-                        <span className="font-bold text-lg">${event.price || 0}</span>
+                        <FaDollarSign className="text-[#0AC18E] mr-1" />
+                        <span className="font-bold text-lg text-black">${event.price || 0}</span>
                         {(event.price || 0) > 0 && (
-                          <span className="ml-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">
+                          <span className="ml-2 bg-[#c0f3e2] text-[#056749] text-xs px-2 py-1 rounded">
                             10% BCH discount
                           </span>
                         )}
@@ -148,7 +148,7 @@ export default function Home() {
 
                       <Link
                         href={`/event/${event._id || event.id}`}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors duration-300"
+                        className="bg-[#0AC18E] hover:bg-[#089c73] text-white px-4 py-2 rounded-md font-medium transition-colors duration-300"
                       >
                         View Details
                       </Link>

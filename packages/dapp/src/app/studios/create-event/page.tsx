@@ -28,8 +28,12 @@ export default function CreateEventPage() {
     additionalInfo: '',
     isRecurring: false,
     recurrencePattern: '',
-    bannerImage: ''
+    bannerImage: '',
+    image: '',
+    imageCid: ''
   });
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageUploadStatus, setImageUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -52,10 +56,54 @@ export default function CreateEventPage() {
     }
   };
 
+  const handleImageUpload = async (file: File) => {
+    setImageUploadStatus('uploading');
+    try {
+      const uploadForm = new FormData();
+      uploadForm.append('file', file);
+      uploadForm.append('name', file.name);
+
+      const response = await fetch('/api/pinata/upload', {
+        method: 'POST',
+        body: uploadForm,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload image');
+      }
+
+      const result = await response.json();
+      setFormData(prev => ({
+        ...prev,
+        bannerImage: result.imageUrl,
+        image: result.imageUrl,
+        imageCid: result.cid,
+      }));
+      setImageUploadStatus('success');
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      setImageUploadStatus('error');
+      alert(`Failed to upload image: ${(error as Error).message}`);
+    }
+  };
+
+  const onImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImagePreview(URL.createObjectURL(file));
+    handleImageUpload(file);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Create event payload
+    if (!formData.bannerImage && !formData.image) {
+      alert('Please upload a banner image for your event.');
+      return;
+    }
+
     const eventPayload = {
       ...formData,
       organizerId: address,
@@ -63,7 +111,9 @@ export default function CreateEventPage() {
       maxCapacity: parseInt(formData.maxCapacity),
       date: new Date(formData.date + 'T' + formData.startTime).toISOString(),
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      image: formData.bannerImage || formData.image,
+      imageCid: formData.imageCid || undefined,
     };
 
     try {
@@ -326,24 +376,44 @@ export default function CreateEventPage() {
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label htmlFor="bannerImage" className="block text-sm font-medium text-gray-700 mb-1">
-                    Banner Image URL (for mobile - Facebook recommends 1200x630px)
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Event Banner Image
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FaImage className="text-gray-400" />
-                    </div>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                    {imagePreview || formData.bannerImage ? (
+                      <div className="mb-4">
+                        <img
+                          src={imagePreview || formData.bannerImage}
+                          alt="Event preview"
+                          className="w-full max-h-64 object-cover rounded-md"
+                        />
+                      </div>
+                    ) : (
+                      <FaImage className="mx-auto text-4xl text-gray-400 mb-2" />
+                    )}
                     <input
-                      type="text"
-                      id="bannerImage"
-                      name="bannerImage"
-                      value={formData.bannerImage}
-                      onChange={handleChange}
-                      className="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://example.com/banner.jpg"
+                      type="file"
+                      accept="image/*"
+                      onChange={onImageFileChange}
+                      className="hidden"
+                      id="bannerImageFile"
                     />
+                    <label
+                      htmlFor="bannerImageFile"
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-700"
+                    >
+                      {imageUploadStatus === 'uploading' ? 'Uploading...' : 'Upload Image'}
+                    </label>
+                    {imageUploadStatus === 'success' && (
+                      <p className="mt-2 text-sm text-green-600">Image uploaded successfully!</p>
+                    )}
+                    {imageUploadStatus === 'error' && (
+                      <p className="mt-2 text-sm text-red-600">Image upload failed. Please try again.</p>
+                    )}
+                    <p className="mt-2 text-sm text-gray-500">
+                      Recommended size: 1200x630 pixels. Images are stored on IPFS via Pinata.
+                    </p>
                   </div>
-                  <p className="mt-1 text-sm text-gray-500">Recommended size: 1200x630 pixels (same as Facebook)</p>
                 </div>
                 
                 <div className="md:col-span-2">

@@ -27,6 +27,7 @@ export default function RegistrationPage() {
   const [ticketData, setTicketData] = useState<any>(null);
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isMintingTicket, setIsMintingTicket] = useState(false);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -85,6 +86,25 @@ export default function RegistrationPage() {
     }
   };
 
+  const mintTicketIfNeeded = async () => {
+    if (ticketData) {
+      return true;
+    }
+
+    if (isMintingTicket) {
+      alert('Ticket is currently being minted. Please wait a moment.');
+      return false;
+    }
+
+    setIsMintingTicket(true);
+    try {
+      const registrationId = await generateTicket();
+      return Boolean(registrationId);
+    } finally {
+      setIsMintingTicket(false);
+    }
+  };
+
   const handleBCHPayment = async () => {
     if (!address) {
       alert("Please connect your wallet first");
@@ -94,11 +114,13 @@ export default function RegistrationPage() {
     try {
       setBchPaymentStatus('processing');
 
-      // In a real app, we would integrate with a payment processor
-      // For this demo, we'll proceed directly to ticket minting
       console.log(`Processing BCH payment for event ${event._id || id}`);
 
-      // Simulate payment confirmation
+      const minted = await mintTicketIfNeeded();
+      if (!minted) {
+        throw new Error('Ticket minting failed');
+      }
+
       setBchPaymentStatus('completed');
       setStep(3);
     } catch (error) {
@@ -109,30 +131,19 @@ export default function RegistrationPage() {
   };
 
   const handleFiatPayment = async () => {
+    if (!address) {
+      alert("Please connect your wallet first");
+      return;
+    }
+
     try {
-      // Mock Google Wallet/Apple Pay integration
       console.log('Processing fiat payment via Google/Apple Pay');
 
-      // Create registration record
-      const registrationResponse = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          eventId: id,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          paymentMethod: 'fiat',
-        }),
-      });
-
-      if (!registrationResponse.ok) {
-        throw new Error('Failed to create registration');
+      const minted = await mintTicketIfNeeded();
+      if (!minted) {
+        throw new Error('Ticket minting failed');
       }
 
-      // For demo purposes, just move to the next step
       setStep(3);
     } catch (error) {
       console.error('Fiat payment error:', error);
@@ -223,11 +234,11 @@ export default function RegistrationPage() {
   };
 
   const handleConfirm = async () => {
-    // Generate the NFT ticket and cashback token
-    const registrationId = await generateTicket();
-    if (registrationId) {
-      router.push(`/confirmation/${id}?registrationId=${registrationId}`);
+    if (!ticketData) {
+      console.warn('Ticket still minting, directing user to /dancers anyway.');
     }
+
+    router.push('/dancers');
   };
 
   return (
@@ -496,14 +507,6 @@ export default function RegistrationPage() {
                     >
                       Back
                     </button>
-                    {paymentMethod === 'fiat' && (
-                      <button
-                        type="submit"
-                        className="px-6 py-3 rounded-md font-medium text-white bg-blue-600 hover:bg-blue-700"
-                      >
-                        Complete Registration
-                      </button>
-                    )}
                   </div>
                 </form>
               </div>
@@ -511,7 +514,7 @@ export default function RegistrationPage() {
 
             {step === 3 && (
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Registration Complete!</h2>
+                <h2 className="text-xl font-semibold text-black mb-4">Registration Complete!</h2>
 
                 <div className="text-center py-8">
                   <div className="inline-block bg-green-100 text-green-800 rounded-full p-4 mb-6">
@@ -520,44 +523,44 @@ export default function RegistrationPage() {
                     </svg>
                   </div>
 
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">You're Registered for {event.title}!</h3>
-                  <p className="text-gray-700 mb-6">We've sent a confirmation to {formData.email}</p>
+                  <h3 className="text-2xl font-bold text-black mb-2">You're Registered for {event.title}!</h3>
+                  <p className="text-black mb-6">We've sent a confirmation to {formData.email}</p>
 
                   <div className="bg-gray-50 p-6 rounded-lg mb-6 text-left max-w-md mx-auto">
-                    <h4 className="font-semibold mb-3">Your Event Ticket (NFT)</h4>
+                    <h4 className="font-semibold text-black mb-3">Your Event Ticket (NFT)</h4>
                     <div className="flex flex-col items-center mb-4">
-                      <div className="bg-gray-200 border-2 border-dashed rounded-xl w-48 h-48 flex items-center justify-center mb-3">
-                        NFT Ticket Preview
+                      <div className="bg-white border-2 border-gray-300 rounded-xl w-48 h-48 flex items-center justify-center mb-3 overflow-hidden">
+                        <img src="/Dance.cash.png" alt="Event Ticket" className="w-full h-full object-cover" />
                       </div>
-                      <p className="text-sm text-gray-600">Your ticket is stored as an NFT CashToken</p>
+                      <p className="text-sm text-black">Your ticket is stored as an NFT CashToken</p>
                     </div>
 
                     <div className="space-y-2 mb-4">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Event:</span>
-                        <span className="font-medium">{event.title}</span>
+                        <span className="text-black">Event:</span>
+                        <span className="font-medium text-black">{event.title}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Date:</span>
-                        <span className="font-medium">{eventDate}</span>
+                        <span className="text-black">Date:</span>
+                        <span className="font-medium text-black">{eventDate}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Time:</span>
-                        <span className="font-medium">{event.startTime || 'TBD'}</span>
+                        <span className="text-black">Time:</span>
+                        <span className="font-medium text-black">{event.startTime || 'TBD'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Venue:</span>
-                        <span className="font-medium">{event.venue || 'TBD'}</span>
+                        <span className="text-black">Venue:</span>
+                        <span className="font-medium text-black">{event.venue || 'TBD'}</span>
                       </div>
                       {ticketData && ticketData.ticket && (
                         <>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Token ID:</span>
-                            <span className="font-medium text-xs break-all">{ticketData.ticket.tokenId?.substring(0, 8)}...</span>
+                            <span className="text-black">Token ID:</span>
+                            <span className="font-medium text-xs break-all text-black">{ticketData.ticket.tokenId?.substring(0, 8)}...</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Transaction:</span>
-                            <span className="font-medium text-xs break-all">{ticketData.ticket.txId?.substring(0, 8)}...</span>
+                            <span className="text-black">Transaction:</span>
+                            <span className="font-medium text-xs break-all text-black">{ticketData.ticket.txId?.substring(0, 8)}...</span>
                           </div>
                         </>
                       )}
@@ -567,10 +570,10 @@ export default function RegistrationPage() {
                   <div className="mb-6">
                     <h4 className="font-semibold mb-3">Get Your NFT Ticket</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
-                      <div className="border border-gray-200 p-4 rounded-lg">
+                      <div className="border border-blue-200 bg-blue-50 p-4 rounded-lg">
                         <h5 className="font-medium mb-2">Google Wallet</h5>
-                        <p className="text-sm text-gray-600 mb-3">Add your ticket to Google Wallet</p>
-                        {ticketData && ticketData.ticket && (
+                        <p className="text-sm text-gray-600 mb-4">Add your ticket to Google Wallet</p>
+                        {ticketData && ticketData.ticket ? (
                           <GoogleWalletButton
                             eventData={formatEventDataForWallet(event)}
                             ticketData={{
@@ -597,15 +600,34 @@ export default function RegistrationPage() {
                             showLabel={false}
                             className="w-full"
                           />
+                        ) : (
+                          <button 
+                            disabled 
+                            className="w-full bg-gray-400 cursor-not-allowed text-white py-2 px-4 rounded-md text-sm"
+                          >
+                            Loading...
+                          </button>
                         )}
                       </div>
 
                       <div className="border border-gray-200 p-4 rounded-lg">
                         <h5 className="font-medium mb-2">Selene Wallet</h5>
                         <p className="text-sm text-gray-600 mb-3">Download to receive and manage your NFT ticket</p>
-                        <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md text-sm">
+                        <div className="flex justify-center mb-3">
+                          <img
+                            src="/selene.png"
+                            alt="Selene Wallet"
+                            className="w-32 h-auto object-contain"
+                          />
+                        </div>
+                        <a
+                          href="https://selene.cash/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-center bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md text-sm"
+                        >
                           Download Selene Wallet
-                        </button>
+                        </a>
                         <div className="mt-3 flex justify-center">
                           <SeleneWalletQR
                             eventId={event._id || id}
@@ -618,9 +640,21 @@ export default function RegistrationPage() {
                       <div className="border border-gray-200 p-4 rounded-lg">
                         <h5 className="font-medium mb-2">CashStamp</h5>
                         <p className="text-sm text-gray-600 mb-3">Scan to receive BCH cashback for next event</p>
-                        <button className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md text-sm">
+                        <div className="flex justify-center mb-3">
+                          <img
+                            src="/stampsCash.svg"
+                            alt="Stamps Cash"
+                            className="w-32 h-auto object-contain"
+                          />
+                        </div>
+                        <a
+                          href="https://stamps.cash/#/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-center bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md text-sm"
+                        >
                           Open CashStamp
-                        </button>
+                        </a>
                         <div className="mt-3 flex justify-center">
                           <CashStampQR
                             address={address || 'temp_address'}

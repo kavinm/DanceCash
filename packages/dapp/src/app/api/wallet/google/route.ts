@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { google } from 'googleapis';
-import { JWT } from 'google-auth-library';
+import jwt from 'jsonwebtoken';
 
 // Get Google service account credentials from environment
 const getServiceAccountCredentials = () => {
@@ -11,7 +11,21 @@ const getServiceAccountCredentials = () => {
   }
 
   try {
-    return JSON.parse(credentialsJson);
+    const credentials = JSON.parse(credentialsJson);
+    
+    // Fix private key: convert literal \n to actual newlines
+    if (credentials.private_key) {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+      console.log('Private key fixed:', {
+        length: credentials.private_key.length,
+        starts_with: credentials.private_key.substring(0, 30),
+        has_newlines: credentials.private_key.includes('\n'),
+        has_carriage_returns: credentials.private_key.includes('\r'),
+      });
+      credentials.private_key = credentials.private_key.replace(/\r/g, '');
+    }
+    
+    return credentials;
   } catch (error) {
     throw new Error('Invalid GOOGLE_SERVICE_ACCOUNT JSON');
   }
@@ -21,11 +35,29 @@ const getServiceAccountCredentials = () => {
 const getWalletClient = async () => {
   const credentials = getServiceAccountCredentials();
 
-  const auth = new JWT({
+  console.log('Credentials loaded:', {
+    client_email: credentials.client_email,
+    private_key: credentials.private_key ? 'Present' : 'MISSING',
+    private_key_id: credentials.private_key_id,
+  });
+
+  const auth = new google.auth.JWT({
     email: credentials.client_email,
     key: credentials.private_key,
     scopes: ['https://www.googleapis.com/auth/wallet_object.issuer'],
   });
+
+  try {
+    await auth.authorize();
+    console.log('Google Wallet auth successful');
+  } catch (authError: any) {
+    console.error('Google Wallet auth failed:', {
+      message: authError.message,
+      response: authError.response?.data,
+      code: authError.code,
+    });
+    throw authError;
+  }
 
   return google.walletobjects({ version: 'v1', auth });
 };
@@ -55,14 +87,12 @@ const generateSignedJwt = async (
     },
   };
 
-  const jwtClient = new JWT({
-    email: credentials.client_email,
-    key: credentials.private_key,
-    keyId: credentials.private_key_id,
+  const token = jwt.sign(payload, credentials.private_key, {
+    algorithm: 'RS256',
+    keyid: credentials.private_key_id,
   });
 
-  const token = await jwtClient.signBlob(Buffer.from(JSON.stringify(payload)));
-  return token.toString('base64');
+  return token;
 };
 
 /**

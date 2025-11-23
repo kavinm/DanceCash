@@ -63,15 +63,24 @@ export async function generateGoogleWalletPass(
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error('Failed to generate Google Wallet pass:', error);
+      let errorPayload: any = {};
+      try {
+        errorPayload = await response.json();
+      } catch (jsonError) {
+        console.warn('Google Wallet API returned non-JSON error response');
+      }
+      const message =
+        errorPayload?.error ||
+        errorPayload?.message ||
+        'Google Wallet service unavailable';
+      console.warn('Failed to generate Google Wallet pass:', message);
       return null;
     }
 
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error('Error generating Google Wallet pass:', error);
+    console.warn('Error generating Google Wallet pass:', error);
     return null;
   }
 }

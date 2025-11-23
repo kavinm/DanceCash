@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 const ConnectButton: React.FC = () => {
   const { address, connect, disconnect, isConnected } = useWeb3ModalConnectorContext();
   const [loading, setLoading] = useState(false);
-  const { balance, utxos } = useWatchAddress(address || '');
+  const { utxos } = useWatchAddress(address || '');
   const [balancesByToken, setBalancesByToken] = useState<Record<string, bigint>>({});
   const [categories, setCategories] = useState<string[]>([]);
   const [showAssets, setShowAssets] = useState(false);
@@ -81,10 +81,10 @@ const ConnectButton: React.FC = () => {
             {loading ? 'Disconnecting...' : 'Disconnect'}
           </button>
 
-          <span className="truncate max-w-xs">{address}</span>
-          <p className="text-right">Balance: {balance !== undefined ? (balance / 1e8).toFixed(8) : '0.00000000'} BCH</p>
+          <span className="truncate max-w-xs text-black">{address}</span>
+          {/* Balance removed per request */}
           {categories && categories.length > 0 && (
-            <p className="underline decoration-dashed cursor-pointer" onClick={() => setShowAssets(!showAssets)}>
+            <p className="underline decoration-dashed cursor-pointer text-black" onClick={() => setShowAssets(!showAssets)}>
               Assets: {categories.length}
             </p>
           )}
