@@ -310,6 +310,9 @@ export const getGateway = () => {
 }
 
 // CashToken/NFT functions for event tickets
+export const DEFAULT_TICKET_IMAGE =
+  "https://violet-perfect-snail-163.mypinata.cloud/ipfs/bafybeiagucrlykq4ubcek35kwusit5tg2uzd5ygq4bp3tvhm4igmisgv6a";
+
 export interface EventTicketData {
   eventId: string;
   eventName: string;
@@ -317,6 +320,8 @@ export interface EventTicketData {
   venue: string;
   dancerName: string;
   dancerEmail: string;
+  dancerWallet?: string;
+  imageUrl?: string;
 }
 
 export interface TokenMetadata {
@@ -330,17 +335,24 @@ export interface TokenMetadata {
  * Creates metadata for an event ticket CashToken
  */
 export const createEventTicketMetadata = (ticketData: EventTicketData): TokenMetadata => {
+  const issuedAt = new Date().toISOString();
+  const image = ticketData.imageUrl || DEFAULT_TICKET_IMAGE;
+
   return {
     name: `${ticketData.eventName} - Ticket`,
-    description: `Event ticket for ${ticketData.eventName} on ${ticketData.eventDate} at ${ticketData.venue}`,
-    image: `https://api.dicebear.com/6.x/event-ticket/svg?seed=${ticketData.eventId}`,
+    description: `Admit ${ticketData.dancerName} to ${ticketData.eventName} on ${ticketData.eventDate} at ${ticketData.venue}`,
+    image,
     properties: {
       eventId: ticketData.eventId,
       eventName: ticketData.eventName,
       eventDate: ticketData.eventDate,
       venue: ticketData.venue,
-      dancerName: ticketData.dancerName,
-      dancerEmail: ticketData.dancerEmail,
+      issuedAt,
+      attendee: {
+        name: ticketData.dancerName,
+        email: ticketData.dancerEmail,
+        wallet: ticketData.dancerWallet ?? "",
+      },
       ticketType: "event-ticket",
     }
   };

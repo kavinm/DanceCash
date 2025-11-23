@@ -1,65 +1,20 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaCalendar, FaClock, FaMapMarkerAlt, FaDollarSign } from "react-icons/fa";
 import Link from "next/link";
 import { useWeb3ModalConnectorContext } from "@bch-wc2/web3modal-connector";
-import { BaseWallet } from "mainnet-js";
-import { createEventTicketToken, sendEventTicketToken, createCashBackToken } from "@/lib/ticketTokens";
-import { EventTicketData } from "@/utils";
+import { mintEventTicketNFT } from "@/lib/ticketMinting";
+import { EventTicketData, DEFAULT_TICKET_IMAGE } from "@/utils";
 import { CashStampQR, SeleneWalletQR } from "@/components/CashStampIntegration";
-
-// Mock data for events - in a real app this would come from an API
-const mockEvents = [
-  {
-    id: "event-1",
-    title: "Bachata Sensation Festival",
-    date: "2024-12-15",
-    time: "19:00",
-    venue: "Dance Paradise Studio",
-    location: "Miami, FL",
-    price: 50,
-    description: "Join us for an amazing evening of Bachata dancing with world-class instructors and performers. This festival features live music, masterclasses, and a grand dance competition.",
-    image: "https://images.unsplash.com/photo-1542662565-7e4e66d9d8f0?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    isRecurring: false,
-    danceStyle: "Bachata",
-    instructor: "Maria Rodriguez"
-  },
-  {
-    id: "event-2",
-    title: "Weekly Bachata Class",
-    date: "2024-12-20",
-    time: "18:30",
-    venue: "Rhythm & Moves Studio",
-    location: "New York, NY",
-    price: 15,
-    description: "Beginner-friendly Bachata class every Friday. Learn the basics and advanced moves with experienced instructors.",
-    image: "https://images.unsplash.com/photo-1519582811669-7bf43f33cb81?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    isRecurring: true,
-    danceStyle: "Bachata",
-    instructor: "James Wilson"
-  },
-  {
-    id: "event-3",
-    title: "Salsa & Bachata Fusion Night",
-    date: "2024-12-22",
-    time: "20:00",
-    venue: "Latin Fire Dance Hall",
-    location: "Los Angeles, CA",
-    price: 25,
-    description: "An exciting fusion of Salsa and Bachata with live music and professional dancers. Learn new moves and enjoy the evening.",
-    image: "https://images.unsplash.com/photo-1507838153414-b4b713384a76?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-    isRecurring: false,
-    danceStyle: "Salsa/Bachata",
-    instructor: "Carlos Mendez & Sofia Lopez"
-  }
-];
+import GoogleWalletButton from "@/components/GoogleWalletButton";
+import { formatEventDataForWallet } from "@/lib/googleWallet";
 
 export default function RegistrationPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { address, connector } = useWeb3ModalConnectorContext();
+  const { address } = useWeb3ModalConnectorContext();
   const [step, setStep] = useState(1); // 1: Info, 2: Payment, 3: Confirmation
   const [formData, setFormData] = useState({
     name: '',
@@ -70,8 +25,35 @@ export default function RegistrationPage() {
   const [paymentMethod, setPaymentMethod] = useState<'bch' | 'fiat'>('bch');
   const [bchPaymentStatus, setBchPaymentStatus] = useState<'idle' | 'processing' | 'completed' | 'failed'>('idle');
   const [ticketData, setTicketData] = useState<any>(null);
+  const [event, setEvent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const event = mockEvents.find(e => e.id === id);
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        const response = await fetch(`/api/events?id=${id}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch event');
+        }
+        const eventData = await response.json();
+        setEvent(eventData);
+      } catch (error) {
+        console.error('Error fetching event:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvent();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-2xl">Loading event...</div>
+      </div>
+    );
+  }
 
   if (!event) {
     return (
@@ -104,7 +86,7 @@ export default function RegistrationPage() {
   };
 
   const handleBCHPayment = async () => {
-    if (!address || !connector) {
+    if (!address) {
       alert("Please connect your wallet first");
       return;
     }
@@ -112,18 +94,13 @@ export default function RegistrationPage() {
     try {
       setBchPaymentStatus('processing');
 
-      // Calculate the amount with 10% discount
-      const amount = paymentMethod === 'bch' ? event.price * 0.9 : event.price;
+      // In a real app, we would integrate with a payment processor
+      // For this demo, we'll proceed directly to ticket minting
+      console.log(`Processing BCH payment for event ${event._id || id}`);
 
-      // In a real app, we would send the payment to an event organizer's address
-      // For this demo, we'll just simulate the payment
-      console.log(`Processing BCH payment of ${amount} BCH for event ${event.id}`);
-
-      // Simulate payment processing
-      setTimeout(() => {
-        setBchPaymentStatus('completed');
-        setStep(3);
-      }, 2000);
+      // Simulate payment confirmation
+      setBchPaymentStatus('completed');
+      setStep(3);
     } catch (error) {
       console.error('BCH payment error:', error);
       setBchPaymentStatus('failed');
@@ -133,49 +110,27 @@ export default function RegistrationPage() {
 
   const handleFiatPayment = async () => {
     try {
-      // Create a checkout session via the backend API
-      const checkoutResponse = await fetch('/api/payments/sessions', {
+      // Mock Google Wallet/Apple Pay integration
+      console.log('Processing fiat payment via Google/Apple Pay');
+
+      // Create registration record
+      const registrationResponse = await fetch('/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: address || formData.email, // Use wallet address or email as user ID
           eventId: id,
-          ticketTypeId: 'general', // Default ticket type
-          totalAmount: paymentMethod === 'bch' ? event.price * 0.9 : event.price,
-          returnUrl: window.location.href,
-          cancelUrl: window.location.href,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          paymentMethod: 'fiat',
         }),
       });
 
-      if (!checkoutResponse.ok) {
-        throw new Error('Failed to create checkout session');
+      if (!registrationResponse.ok) {
+        throw new Error('Failed to create registration');
       }
-
-      const checkoutData = await checkoutResponse.json();
-
-      // For fiat payments, we'll process via Google Pay
-      const googlePayResponse = await fetch('/api/payments/google', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          checkoutSessionId: checkoutData.sessionId,
-          userId: address || formData.email,
-          dancerName: formData.name,
-        }),
-      });
-
-      if (!googlePayResponse.ok) {
-        throw new Error('Failed to process Google Pay');
-      }
-
-      const googlePayData = await googlePayResponse.json();
-
-      // In a real app, you would redirect to the Google Pay URL or handle the payment
-      console.log('Google Pay URL:', googlePayData.googlePayUrl);
 
       // For demo purposes, just move to the next step
       setStep(3);
@@ -194,53 +149,84 @@ export default function RegistrationPage() {
     }
   };
 
-  const generateTicket = async () => {
-    if (!address || !connector) {
+  const generateTicket = async (): Promise<string | null> => {
+    if (!address) {
       alert("Please connect your wallet first");
-      return;
+      return null;
     }
 
     try {
-      // Create a ticket via the backend API
-      const ticketResponse = await fetch('/api/tickets', {
+      // Prepare event ticket data
+      const ticketInfo: EventTicketData = {
+        eventId: event._id || id,
+        eventName: event.title,
+        eventDate: event.date,
+        venue: event.venue,
+        dancerName: formData.name,
+        dancerEmail: formData.email,
+        dancerWallet: address,
+        imageUrl: event.image || DEFAULT_TICKET_IMAGE,
+      };
+
+      // Calculate cashback amount (10% of ticket price)
+      // Mint the event ticket NFT via issuer wallet
+      const mintResult = await mintEventTicketNFT({
+        ticket: ticketInfo,
+      });
+
+      // Create registration record in the database
+      const registrationResponse = await fetch('/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          eventId: id,
-          ticketTypeId: 'general', // Default ticket type
-          userId: address,
-          status: 'active',
-          pricePaid: paymentMethod === 'bch' ? event.price * 0.9 : event.price,
-          pricePaidBCH: paymentMethod === 'bch' ? event.price * 0.9 : undefined,
-          transactionId: 'mock-transaction-id', // Would be actual transaction ID in real implementation
+          eventId: event._id || id,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
           paymentMethod: paymentMethod,
-          ticketTokenId: 'mock-token-id', // Would be actual token ID in real implementation
+          nftTokenId: mintResult.tokenId,
+          transactionId: mintResult.txId,
+          metadataCid: mintResult.metadataCid,
+          metadataUri: mintResult.metadataUri,
+          imageCid: mintResult.imageCid,
+          userWallet: address,
         }),
       });
 
-      if (!ticketResponse.ok) {
-        throw new Error('Failed to create ticket');
+      if (!registrationResponse.ok) {
+        throw new Error('Failed to create registration');
       }
 
-      const ticketData = await ticketResponse.json();
-      setTicketData(ticketData);
+      const registrationPayload = await registrationResponse.json();
+      const registrationData = registrationPayload.registration;
 
-      console.log('Ticket created successfully via backend:', ticketData);
-      return true;
+      setTicketData({
+        ticket: {
+          ...mintResult,
+        },
+        registration: registrationData
+      });
+
+      console.log('Ticket generated successfully:', {
+        ticket: mintResult,
+        registration: registrationData
+      });
+
+      return registrationPayload.registrationId;
     } catch (error) {
       console.error('Error generating ticket:', error);
-      alert('Failed to generate ticket. Please try again.');
-      return false;
+      alert('Failed to generate NFT ticket. Please try again.');
+      return null;
     }
   };
 
   const handleConfirm = async () => {
     // Generate the NFT ticket and cashback token
-    const ticketGenerated = await generateTicket();
-    if (ticketGenerated) {
-      router.push(`/confirmation/${id}`);
+    const registrationId = await generateTicket();
+    if (registrationId) {
+      router.push(`/confirmation/${id}?registrationId=${registrationId}`);
     }
   };
 
@@ -287,15 +273,15 @@ export default function RegistrationPage() {
                   <div className="flex items-start">
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg">{event.title}</h3>
-                      <p className="text-gray-700">{event.danceStyle} • {event.venue}, {event.location}</p>
+                      <p className="text-gray-700">{event.danceStyle || 'Dance Event'} • {event.venue || 'TBD'}, {event.location?.city ? `${event.location.city}, ${event.location.state}` : event.location || 'TBD'}</p>
                       <div className="flex items-center text-sm text-gray-600 mt-2">
-                        <FaCalendar className="mr-2" /> {eventDate} • {event.time}
+                        <FaCalendar className="mr-2" /> {eventDate} • {event.startTime || 'TBD'}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-bold text-blue-600">${event.price}</div>
+                      <div className="text-2xl font-bold text-blue-600">${event.price || 0}</div>
                       {paymentMethod === 'bch' && (
-                        <div className="text-sm text-gray-600">with 10% BCH discount: ${(event.price * 0.9).toFixed(2)}</div>
+                        <div className="text-sm text-gray-600">with 10% BCH discount: ${((event.price || 0) * 0.9).toFixed(2)}</div>
                       )}
                     </div>
                   </div>
@@ -314,7 +300,7 @@ export default function RegistrationPage() {
                         name="name"
                         value={formData.name}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                         required
                       />
                     </div>
@@ -329,7 +315,7 @@ export default function RegistrationPage() {
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                         required
                       />
                     </div>
@@ -344,7 +330,7 @@ export default function RegistrationPage() {
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                         required
                       />
                     </div>
@@ -397,7 +383,7 @@ export default function RegistrationPage() {
                     />
                     <div className="ml-3">
                       <div className="text-sm font-medium text-gray-900">Pay with Bitcoin Cash (BCH)</div>
-                      <div className="text-sm text-gray-500">Get a 10% discount: ${(event.price * 0.9).toFixed(2)}</div>
+                      <div className="text-sm text-gray-500">Get a 10% discount: ${((event.price || 0) * 0.9).toFixed(2)}</div>
                     </div>
                   </label>
 
@@ -411,7 +397,7 @@ export default function RegistrationPage() {
                     />
                     <div className="ml-3">
                       <div className="text-sm font-medium text-gray-900">Pay with Fiat (Google/Apple Pay)</div>
-                      <div className="text-sm text-gray-500">Regular price: ${event.price.toFixed(2)}</div>
+                      <div className="text-sm text-gray-500">Regular price: ${(event.price || 0).toFixed(2)}</div>
                     </div>
                   </label>
                 </div>
@@ -420,17 +406,17 @@ export default function RegistrationPage() {
                   <div className="bg-gray-50 p-4 rounded-lg mb-6">
                     <div className="flex justify-between mb-2">
                       <span>Event Price:</span>
-                      <span>${event.price.toFixed(2)}</span>
+                      <span>${(event.price || 0).toFixed(2)}</span>
                     </div>
                     {paymentMethod === 'bch' && (
                       <div className="flex justify-between mb-2">
                         <span>BCH Discount (10%):</span>
-                        <span className="text-green-600">-${(event.price * 0.1).toFixed(2)}</span>
+                        <span className="text-green-600">-${((event.price || 0) * 0.1).toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-bold text-lg border-t pt-2">
                       <span>Total:</span>
-                      <span>{paymentMethod === 'bch' ? `$${(event.price * 0.9).toFixed(2)}` : `$${event.price.toFixed(2)}`}</span>
+                      <span>{paymentMethod === 'bch' ? `$${((event.price || 0) * 0.9).toFixed(2)}` : `$${(event.price || 0).toFixed(2)}`}</span>
                     </div>
                   </div>
 
@@ -471,13 +457,33 @@ export default function RegistrationPage() {
                     ) : (
                       <div className="border border-green-200 bg-green-50 p-4 rounded-lg">
                         <h3 className="font-semibold mb-2">Pay with Fiat</h3>
-                        <button
-                          type="button"
-                          onClick={handleFiatPayment}
-                          className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-md font-medium"
-                        >
-                          Pay with Google Pay / Apple Pay
-                        </button>
+                        <div className="flex flex-col gap-4">
+                          <div className="space-y-2">
+                            <p className="text-sm text-gray-600">Add to Google Wallet</p>
+                            <a
+                              href="#"
+                              className="inline-block hover:opacity-80 transition-opacity"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                // Google Wallet will be implemented after payment
+                              }}
+                            >
+                              <img 
+                                src="/enCA_add_to_google_wallet_add-wallet-badge.png" 
+                                alt="Add to Google Wallet"
+                                className="h-auto"
+                                style={{ width: '200px' }}
+                              />
+                            </a>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleFiatPayment}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-md font-medium"
+                          >
+                            Pay with Google Pay / Apple Pay
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -537,18 +543,63 @@ export default function RegistrationPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Time:</span>
-                        <span className="font-medium">{event.time}</span>
+                        <span className="font-medium">{event.startTime || 'TBD'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Venue:</span>
-                        <span className="font-medium">{event.venue}</span>
+                        <span className="font-medium">{event.venue || 'TBD'}</span>
                       </div>
+                      {ticketData && ticketData.ticket && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Token ID:</span>
+                            <span className="font-medium text-xs break-all">{ticketData.ticket.tokenId?.substring(0, 8)}...</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Transaction:</span>
+                            <span className="font-medium text-xs break-all">{ticketData.ticket.txId?.substring(0, 8)}...</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
                   <div className="mb-6">
                     <h4 className="font-semibold mb-3">Get Your NFT Ticket</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                      <div className="border border-gray-200 p-4 rounded-lg">
+                        <h5 className="font-medium mb-2">Google Wallet</h5>
+                        <p className="text-sm text-gray-600 mb-3">Add your ticket to Google Wallet</p>
+                        {ticketData && ticketData.ticket && (
+                          <GoogleWalletButton
+                            eventData={formatEventDataForWallet(event)}
+                            ticketData={{
+                              eventId: event._id || String(id),
+                              eventName: event.title,
+                              eventDate: event.date,
+                              venue: event.venue || 'TBD',
+                              dancerName: formData.name,
+                              dancerEmail: formData.email,
+                              dancerWallet: address || 'unknown',
+                              imageUrl: event.image || DEFAULT_TICKET_IMAGE,
+                              tokenId: ticketData.ticket.tokenId,
+                              txId: ticketData.ticket.txId,
+                              metadataCid: ticketData.ticket.metadataCid,
+                              metadataUri: ticketData.ticket.metadataUri,
+                              imageCid: ticketData.ticket.imageCid,
+                            }}
+                            onSuccess={(result) => {
+                              console.log('Google Wallet pass created:', result);
+                            }}
+                            onError={(error) => {
+                              console.error('Google Wallet error:', error);
+                            }}
+                            showLabel={false}
+                            className="w-full"
+                          />
+                        )}
+                      </div>
+
                       <div className="border border-gray-200 p-4 rounded-lg">
                         <h5 className="font-medium mb-2">Selene Wallet</h5>
                         <p className="text-sm text-gray-600 mb-3">Download to receive and manage your NFT ticket</p>
@@ -557,7 +608,7 @@ export default function RegistrationPage() {
                         </button>
                         <div className="mt-3 flex justify-center">
                           <SeleneWalletQR
-                            eventId={event.id}
+                            eventId={event._id || id}
                             eventName={event.title}
                             dancerName={formData.name}
                           />
@@ -573,7 +624,7 @@ export default function RegistrationPage() {
                         <div className="mt-3 flex justify-center">
                           <CashStampQR
                             address={address || 'temp_address'}
-                            amount={event.price * 0.1} // 10% cashback
+                            amount={Math.floor(((event.price || 0) * 0.1) * 1000)} // 10% cashback in satoshis
                             message={`Cashback for ${event.title}`}
                           />
                         </div>

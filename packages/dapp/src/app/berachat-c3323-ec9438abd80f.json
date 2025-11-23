@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "berachat-c3323",
+  "private_key_id": "ec9438abd80f747f2b1aced8331a869f8166fcbe",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCyiTg2WQ90QN4l\nEqczgoRlzBVJa8aue0s39ploOJighTu++1UH78ONdZA+n5GOwdFJG2NRC22dAz0v\nZABj2OZ98WPU9P8k4vK2LBQn7rFeBcEenAkb8fxaBmnvTk0Td7co4bvXN4xMjDEu\nxj7Il6bzPkn7SdAOIf7t9e94orpqAkNaaQmL3L09vZaMAkKE758I33P//3Igkr8N\nz00mcR06SwRmaKARdWcg8fieNLjarg2g9NLP+Rc5n3MWtl+I+Tvrg5iRKSdNELYw\nt/Dx7APj8XwC6WenqSO0cRP9jx+0OlGldiioVAppBtN4XuXbeGuspIaMMT+1s4nv\nqYN5dWxrAgMBAAECggEANaKsrQMfdezg7+FFMt/Ud6KSiI6kzxlCNStT1fAexiaQ\nluT5nBtHM9GsRmv4thr7DUv5j8jvorps4LZZuaVZRV/F/p2lowa9JMZkPcTjKxxu\ncows3mTZy4/etmJfHGicMV9zZ4oMD5kUU3mCNg/9O1ksr53yr7Q92m5GhYbZmuvW\nvOjJiRdO+l64vjqsQKAC38YrvsCs4rt+JV21fL3GuPMLy1OX+yARhr5CM6IDY2od\nYHQYUqUjgtVTx1WCmPIfNPcLK5eZIo5jKlOfL9gCczZOMsDNfDTVg5RY1KiXB92w\nCBgUSOezIY3I0zZGi7RJ1UM47A+lJ1HFOxl/5M8iMQKBgQDxPG6ftG7qllg/FTrK\n33RfmznGXBQUjZMSi6L6tblJlufjxYJ/UI4zrUQ7ZV3D2uOV9JBy0TgA03qpZX4O\nrJ+xEwwoG/paimdD+n8O71bAlgUm+yz4UV6b1+oLWWq2URGvB0Vmw7foaQ0dLS+l\n109p+y3WSWjttfjmLJ6KSeHaGwKBgQC9dm8Xm9PW9j88f1X+onfKAwukzLJBtgXH\ntipi9eznSDdy51DFQ9Z6T7+/k695gJMCCe0RGxMAVYdRx+5+tvVMKMlNJcyJccKN\nFdDyc8Rzo2r6UUI/R5gZ0NcLv6tqEGUXfMQcJnEbZdhAbrTE/+4V0gjBoOglzcmS\niq/dZubb8QKBgQDp8bVGY/D8xvillK0DeVieLycEWt+OXw21+nz/raQW3aXcmfpI\nBZMiQnHdOByKh4gWMKq07njlNDHMfYSWLopfax1q+Fb93yLuJct6bFkxQ0uT1hpy\nZlbdw7JRd1GppU0E9IQ1eLCtTtNM7Dk9F2UIXnLBUUfU35iVf8fwTF4e6QKBgH/B\nfOfOi+pH4hxJQROTOnNd2lwmK41j0EH69FoGuti6OamhkTVzqQyQ+huU2p5ztK2L\nQ/Bk8UsoYTckOg34ETBp0FPVSTblHutD6sGSjsXrTBe+84z4GfhOerPRayT6KTDN\nUPAqe9qdslTAUeUFLuZH2t+2QNQ9D89g9XW2DbYBAoGBAMNbI1z8R9l1KUYSUsMf\nqJ9xVCMcjS4F1Ia+x94wSy2KxUNI+CMF905r8DUZLC6GbSJExcDHj1ee5necHQwU\nxBTG4iNGYHU4DY16Sq6H1My9QkbeNrzv2vdlc814UOyicqARaJ/fQtYcwBsH4gic\nlL14ITeCdvrfcR8pnHCNnK9w\n-----END PRIVATE KEY-----\n",
+  "client_email": "dancecash@berachat-c3323.iam.gserviceaccount.com",
+  "client_id": "102345675275009040609",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/dancecash%40berachat-c3323.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

@@ -1,4 +1,4 @@
-import { BaseWallet } from "mainnet-js";
+import { BaseWallet, SendRequest } from "mainnet-js";
 import { EventTicketData, createTicketCommitment } from "../utils";
 
 /**
@@ -17,13 +17,17 @@ export const createEventTicketToken = async (
     // Create a unique commitment for this ticket
     const commitment = createTicketCommitment(ticketData);
 
-    // Create the token genesis with commitment
-    const genesisResponse = await wallet.tokenGenesis({
-      cashaddr: wallet.cashaddr!,      // Token goes to wallet by default
-      amount: 0n,                      // NFT has 0 fungible amount
-      commitment: commitment,
-      capability: "none",              // Non-mutable NFT
-      value: 1000,                    // Minimum value for token UTXO
+    // Manually build and send a token genesis transaction
+    // This is required because WrapWallet does not support `tokenGenesis` directly
+    const genesisResponse = await wallet.send({
+      cashaddr: wallet.cashaddr!,
+      value: 1000, // Dust amount for the token
+      unit: "sat",
+      token: {
+        amount: 0n, // NFT
+        capability: "none",
+        commitment: commitment,
+      },
     });
 
     const tokenId = genesisResponse.tokenIds![0];
@@ -35,7 +39,7 @@ export const createEventTicketToken = async (
     return {
       tokenId,
       commitment,
-      txId: genesisResponse.txId
+      txId: genesisResponse.txId,
     };
   } catch (error) {
     console.error("Error creating event ticket token:", error);

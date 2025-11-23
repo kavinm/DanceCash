@@ -14,19 +14,22 @@ const ConnectButton: React.FC = () => {
   const [showAssets, setShowAssets] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      if (utxos) {
-        const categories = utxos.map((utxo) => utxo.token?.capability ? undefined : utxo.token?.tokenId).filter((tokenId) => tokenId !== undefined).filter((value, index, array) => array.indexOf(value) === index);
-        setCategories(categories);
-        await addMissingBCMRs(categories);
-        const balances = categories.reduce((acc, category) => {
-          acc[category] = utxos.filter((utxo) => utxo.token?.tokenId === category).reduce((acc, utxo) => acc + (utxo.token!.amount ?? 0n), 0n);
-          return acc;
-        }, {} as Record<string, bigint>);
-        setBalancesByToken(balances);
-        setCategories(categories);
-      }
-    })();
+    if (utxos) {
+      (async () => {
+        try {
+          const categories = utxos.map((utxo) => utxo.token?.capability ? undefined : utxo.token?.tokenId).filter((tokenId) => tokenId !== undefined).filter((value, index, array) => array.indexOf(value) === index);
+          setCategories(categories);
+          await addMissingBCMRs(categories);
+          const balances = categories.reduce((acc, category) => {
+            acc[category] = utxos.filter((utxo) => utxo.token?.tokenId === category).reduce((acc, utxo) => acc + (utxo.token!.amount ?? 0n), 0n);
+            return acc;
+          }, {} as Record<string, bigint>);
+          setBalancesByToken(balances);
+        } catch (error) {
+          console.error('Error processing UTXOs:', error);
+        }
+      })();
+    }
   }, [utxos]);
 
   const connectWallet = useCallback(async () => {
@@ -38,9 +41,11 @@ const ConnectButton: React.FC = () => {
       setLoading(true);
       await connect();
     } catch (err) {
-      alert('Failed to connect wallet.');
+      console.error('Failed to connect wallet:', err);
+      alert('Failed to connect wallet. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [connect]);
 
   const disconnectWallet = useCallback(async () => {
@@ -53,9 +58,11 @@ const ConnectButton: React.FC = () => {
       setLoading(true);
       await disconnect();
     } catch (err) {
-      alert('Failed to disconnect wallet.');
+      console.error('Failed to disconnect wallet:', err);
+      alert('Failed to disconnect wallet. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [disconnect]);
 
   return (
@@ -74,30 +81,35 @@ const ConnectButton: React.FC = () => {
             {loading ? 'Disconnecting...' : 'Disconnect'}
           </button>
 
-          <span>{address}</span>
-          <p className="text-right">Balance: {(balance ?? 0)/1e8} BCH</p>
-          {categories && <p className="underline decoration-dashed cursor-pointer" onClick={() => setShowAssets(!showAssets)}>Assets: {categories.length}</p>}
-          {showAssets && <div className="h-72 rounded-md border p-3 overflow-y-scroll absolute bg-white dark:bg-zinc-800 shadow-md mt-33">
-            <div className="flex flex-col">
-              {categories?.map((category) => (
-                <div key={category} className="mt-3 text-sm">
-                  <div className="flex flex-row gap-2">
-                    <img className="rounded-full w-12 h-12" src={getTokenImage(category)} width={48} height={48}  />
-                    <div className="flex flex-col">
-                      <div>{getTokenName(category)}</div>
-                      <div className="flex flex-col gap">
-                        <div className="flex flex-row gap-3">
-                          <div>{(Number(balancesByToken[category]) / (10**getTokenDecimals(category))).toFixed(getTokenDecimals(category))}</div>
-                          <div>${getTokenLabel(category)}</div>
+          <span className="truncate max-w-xs">{address}</span>
+          <p className="text-right">Balance: {balance !== undefined ? (balance / 1e8).toFixed(8) : '0.00000000'} BCH</p>
+          {categories && categories.length > 0 && (
+            <p className="underline decoration-dashed cursor-pointer" onClick={() => setShowAssets(!showAssets)}>
+              Assets: {categories.length}
+            </p>
+          )}
+          {showAssets && (
+            <div className="h-72 rounded-md border p-3 overflow-y-scroll absolute bg-white dark:bg-zinc-800 shadow-md mt-33 z-50">
+              <div className="flex flex-col">
+                {categories?.map((category) => (
+                  <div key={category} className="mt-3 text-sm">
+                    <div className="flex flex-row gap-2">
+                      <img className="rounded-full w-12 h-12" src={getTokenImage(category)} width={48} height={48}  />
+                      <div className="flex flex-col">
+                        <div>{getTokenName(category)}</div>
+                        <div className="flex flex-col gap">
+                          <div className="flex flex-row gap-3">
+                            <div>{(Number(balancesByToken[category]) / (10**getTokenDecimals(category))).toFixed(getTokenDecimals(category))}</div>
+                            <div>${getTokenLabel(category)}</div>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
               </div>
             </div>
-          }
+          )}
         </div>
       ) : (
         <div className="flex flex-col w-full items-end gap-2">

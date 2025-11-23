@@ -1,54 +1,67 @@
 import { NextRequest } from 'next/server';
-import { getTicketsCollection, getEventsCollection, getNFTRicketRecordsCollection, getCashbackRecordsCollection } from '@/models/CollectionAccess';
-import { Ticket, NFTRicketRecord, CashbackRecord } from '@/models/index';
-import { ObjectId } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
+
+// Replace with your MongoDB connection string
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://dancecash:hi7Cj0Xk0Nt2iSR8@cluster0.5tgaxcl.mongodb.net/?appName=Cluster0';
+
+let client: MongoClient;
+let clientPromise: Promise<MongoClient>;
+
+if (!global._mongoClientPromise) {
+  client = new MongoClient(MONGODB_URI);
+  global._mongoClientPromise = client.connect();
+}
+clientPromise = global._mongoClientPromise;
+
+// Global variable to store the client promise 
+// (This helps with Vercel's serverless function limitations)  
+declare global {
+  var _mongoClientPromise: Promise<MongoClient>;
+}
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const wallet = searchParams.get('wallet') || searchParams.get('userId');
     const eventId = searchParams.get('eventId');
-    const ticketId = searchParams.get('ticketId');
-
-    const ticketsCollection = await getTicketsCollection();
-    const eventsCollection = await getEventsCollection();
-
-    // If a specific ticket ID is provided, return that ticket
-    if (ticketId) {
-      const ticket = await ticketsCollection.findOne({ _id: new ObjectId(ticketId) });
-      if (!ticket) {
-        return Response.json({ error: 'Ticket not found' }, { status: 404 });
+    const tokenIdsParam = searchParams.get('tokenIds');
+    
+    const db = (await clientPromise).db('dancecash');
+    const ticketsCollection = db.collection('registrations'); // Using registrations as tickets collection
+    
+    const query: Record<string, any> = {};
+    if (wallet) {
+      query.userWallet = wallet;
+    }
+    if (eventId) {
+      query.eventId = eventId;
+    }
+    if (tokenIdsParam) {
+      const tokenIds = tokenIdsParam
+        .split(',')
+        .map((tokenId) => tokenId.trim())
+        .filter(Boolean);
+      if (tokenIds.length) {
+        query.nftTokenId = { $in: tokenIds };
       }
-      
-      // Get event details for the ticket
-      const event = await eventsCollection.findOne({ _id: new ObjectId(ticket.eventId) });
-      
-      return Response.json({ ...ticket, event: { title: event?.title, date: event?.date } });
     }
-    
-    // Otherwise, return tickets for a user or event
-    const query: any = {};
-    if (userId) query.userId = userId;
-    if (eventId) query.eventId = eventId;
-    
-    if (Object.keys(query).length === 0) {
-      return Response.json({ error: 'Either userId or eventId must be provided' }, { status: 400 });
-    }
-    
-    const tickets = await ticketsCollection
-      .find(query)
-      .sort({ purchaseDate: -1 })
-      .toArray();
-    
-    // For each ticket, get the event details
-    const ticketsWithEvents = await Promise.all(tickets.map(async (ticket) => {
-      const event = await eventsCollection.findOne({ _id: new ObjectId(ticket.eventId) });
-      return { 
-        ...ticket, 
-        event: { title: event?.title, date: event?.date, venue: event?.venue } 
-      };
-    }));
-    
+
+    const tickets = await ticketsCollection.find(query).toArray();
+
+    const eventsCollection = db.collection('events');
+    const ticketsWithEvents = await Promise.all(
+      tickets.map(async (ticket) => {
+        const event = await eventsCollection.findOne({ _id: new ObjectId(ticket.eventId) });
+        return {
+          ...ticket,
+          eventTitle: event?.title,
+          eventDate: event?.date,
+          venue: event?.venue,
+          event,
+        };
+      })
+    );
+
     return Response.json({ tickets: ticketsWithEvents });
   } catch (error) {
     console.error('Error fetching tickets:', error);
@@ -58,74 +71,28 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const ticketsCollection = await getTicketsCollection();
-    const nftTicketRecordsCollection = await getNFTRicketRecordsCollection();
-    const cashbackRecordsCollection = await getCashbackRecordsCollection();
+    const db = (await clientPromise).db('dancecash');
+    const ticketsCollection = db.collection('registrations');
     
     const body = await request.json();
-    const { eventId, ticketTypeId, userId, status, pricePaid, pricePaidBCH, transactionId, paymentMethod, ticketTokenId } = body;
     
     // Validate required fields
-    if (!eventId || !ticketTypeId || !userId || !pricePaid || !paymentMethod) {
-      return Response.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!body.eventId || !body.userId) {
+      return Response.json({ error: 'Missing required fields: eventId, userId' }, { status: 400 });
     }
     
-    // Create the ticket
-    const newTicket: Ticket = {
-      eventId,
-      ticketTypeId,
-      userId,
-      status: status || 'active',
-      purchaseDate: new Date(),
-      transactionId,
-      paymentMethod,
-      pricePaid,
-      pricePaidBCH,
-      ticketTokenId, // This would come from the CashToken creation
+    const ticket = {
+      ...body,
       createdAt: new Date(),
       updatedAt: new Date()
     };
     
-    const ticketResult = await ticketsCollection.insertOne(newTicket);
-    
-    // If this is a confirmed payment and we have a token ID, create NFT ticket record
-    if (transactionId && ticketTokenId) {
-      const nftTicketRecord: NFTRicketRecord = {
-        tokenId: ticketTokenId,
-        eventId,
-        userId,
-        commitment: `ticket:${ticketResult.insertedId.toString()}`, // Unique commitment for this ticket
-        txId: transactionId,
-        walletAddress: '', // Would be populated with user's wallet address
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      
-      await nftTicketRecordsCollection.insertOne(nftTicketRecord);
-      
-      // Create a cashback record (10% of ticket price as cashback tokens)
-      const cashbackAmount = Math.floor(pricePaid * 0.1 * 1000); // Convert to satoshis using $1 = 1000 sat conversion
-      
-      const cashbackRecord: CashbackRecord = {
-        eventId,
-        userId,
-        tokenId: `cashback_${Date.now()}`, // In a real app, this would be an actual token ID
-        amount: cashbackAmount,
-        txId: transactionId,
-        walletAddress: '', // Would be populated with user's wallet address
-        claimStatus: 'available',
-        claimExpiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      
-      await cashbackRecordsCollection.insertOne(cashbackRecord);
-    }
+    const result = await ticketsCollection.insertOne(ticket);
     
     return Response.json({ 
       message: 'Ticket created successfully', 
-      ticketId: ticketResult.insertedId.toString(),
-      ticket: { ...newTicket, _id: ticketResult.insertedId } 
+      ticketId: result.insertedId.toString(),
+      ticket: { ...ticket, _id: result.insertedId } 
     }, { status: 201 });
   } catch (error) {
     console.error('Error creating ticket:', error);
