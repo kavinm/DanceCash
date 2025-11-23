@@ -14,6 +14,10 @@ export default function StudioDashboard() {
   const [studioData, setStudioData] = useState<any>({});
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [eventRegistrations, setEventRegistrations] = useState<any[]>([]);
+  const [registrationsLoading, setRegistrationsLoading] = useState(false);
+  const [showRegistrations, setShowRegistrations] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -28,7 +32,11 @@ export default function StudioDashboard() {
 
           // Calculate studio analytics from events
           const totalEvents = eventsData.events?.length || 0;
-          const totalRevenue = eventsData.events?.reduce((sum: number, event: any) => sum + (event.price || 0), 0) || 0;
+          const totalRevenue = eventsData.events?.reduce(
+            (sum: number, event: any) =>
+              sum + ((event.price || 0) * (event.currentlyRegistered || 0)),
+            0
+          ) || 0;
           const totalDancers = eventsData.events?.reduce((sum: number, event: any) => sum + (event.currentlyRegistered || 0), 0) || 0;
 
           setStudioData({
@@ -58,6 +66,25 @@ export default function StudioDashboard() {
       fetchData();
     }
   }, [address, isConnected]);
+
+  const openRegistrationsPanel = async (event: any) => {
+    setSelectedEvent(event);
+    setShowRegistrations(true);
+    setRegistrationsLoading(true);
+    try {
+      const response = await fetch(`/api/register?eventId=${event._id || event.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to load registrations');
+      }
+      const data = await response.json();
+      setEventRegistrations(data.registrations || []);
+    } catch (error) {
+      console.error('Failed to load registrations:', error);
+      setEventRegistrations([]);
+    } finally {
+      setRegistrationsLoading(false);
+    }
+  };
 
   if (!isConnected) {
     return (
@@ -179,56 +206,25 @@ export default function StudioDashboard() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{event.title || event.name}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(event.date).toLocaleDateString() || event.date}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{event.currentlyRegistered || 0}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${event.price || 0}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ${((event.price || 0) * (event.currentlyRegistered || 0)).toFixed(2)}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <button className="text-blue-600 hover:text-blue-900 mr-3">
                               <FaEdit />
                             </button>
-                            <Link href={`/event/${event._id || event.id}`} className="text-green-600 hover:text-green-900">
+                            <Link href={`/event/${event._id || event.id}`} className="text-green-600 hover:text-green-900 mr-3">
                               View
                             </Link>
+                            <button
+                              className="text-purple-600 hover:text-purple-900"
+                              onClick={() => openRegistrationsPanel(event)}
+                            >
+                              Dancers
+                            </button>
                           </td>
                         </tr>
                       ))}
-                      {(!studioData.upcomingEvents || studioData.upcomingEvents.length === 0) && (
-                        <tr>
-                          <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
-                            No events found. Create your first event!
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue Breakdown</h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross Revenue</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      <tr>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Today</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${Math.round((studioData.revenue || 0) * 0.1)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${Math.round((studioData.revenue || 0) * 0.09)}</td>
-                      </tr>
-                      <tr>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">This Week</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${Math.round((studioData.revenue || 0) * 0.5)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${Math.round((studioData.revenue || 0) * 0.45)}</td>
-                      </tr>
-                      <tr>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">This Month</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${studioData.revenue?.toLocaleString() || 0}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${Math.round((studioData.revenue || 0) * 0.9)?.toLocaleString() || 0}</td>
-                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -284,9 +280,15 @@ export default function StudioDashboard() {
                           <button className="text-blue-600 hover:text-blue-900 mr-3">
                             <FaEdit />
                           </button>
-                          <Link href={`/event/${event._id || event.id}`} className="text-green-600 hover:text-green-900">
+                          <Link href={`/event/${event._id || event.id}`} className="text-green-600 hover:text-green-900 mr-3">
                             View
                           </Link>
+                          <button
+                            className="text-purple-600 hover:text-purple-900"
+                            onClick={() => openRegistrationsModal(event)}
+                          >
+                            Dancers
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -350,6 +352,68 @@ export default function StudioDashboard() {
           )}
         </div>
       </main>
+
+      {showRegistrations && (
+        <div className="container mx-auto px-4 pb-8">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Dancers - {selectedEvent?.title}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {selectedEvent?.currentlyRegistered || 0} registered · ${selectedEvent?.price || 0} per dancer
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowRegistrations(false);
+                  setSelectedEvent(null);
+                  setEventRegistrations([]);
+                }}
+                className="text-gray-500 hover:text-gray-700 text-sm"
+              >
+                Clear
+              </button>
+            </div>
+
+            {registrationsLoading ? (
+              <div className="flex justify-center items-center py-10">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+              </div>
+            ) : eventRegistrations.length === 0 ? (
+              <p className="text-center text-gray-500">No dancers have registered for this event yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 max-h-96 overflow-y-auto">
+                {eventRegistrations.map((registration) => (
+                  <div
+                    key={registration._id}
+                    className="border border-gray-200 rounded-lg p-4 flex justify-between items-start"
+                  >
+                    <div>
+                      <p className="text-base font-semibold text-gray-900">
+                        {registration.name || 'Unnamed Dancer'}
+                      </p>
+                      <p className="text-sm text-gray-600">{registration.email}</p>
+                      {registration.phone && (
+                        <p className="text-sm text-gray-600">{registration.phone}</p>
+                      )}
+                      {registration.userWallet && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Wallet: {registration.userWallet}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-sm text-gray-500">
+                      {registration.createdAt ? new Date(registration.createdAt).toLocaleString() : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
